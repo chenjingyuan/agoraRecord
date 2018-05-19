@@ -1,0 +1,1 @@
+docker run -it -v ~/github/agoraRecord:/usr/local/webapps -p 8080:8080 registry.cn-hangzhou.aliyuncs.com/white/white-agora-record:1.0  bash
