@@ -1,6 +1,5 @@
 package whiteRtcRecord.whiteRtcRecord;
 
-import io.agora.record.AgoraJavaRecording;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -27,16 +26,14 @@ public class WhiteRtcRecordApplication{
 		String[] para = new String[] {"--appId", appId,"--uid", defaultUid,
 				"--channel", channelId ,"--appliteDir",appliteDir
 		};
-		AgoraJavaRecording agoraJavaRecording = new AgoraJavaRecording(libraryPath,false);
-		RecordingService  recordingService = new RecordingService(agoraJavaRecording);
+		RecordingService recordingService = Recorder.getInstance();
 		recordingService.startRecord(para);
 		return "success";
 	}
 
-	@RequestMapping(value="/rtcFile/{channelId}:end", method= RequestMethod.PUT)
+	@RequestMapping(value="/rtcFile/{channelId}:end", method= RequestMethod.GET)
 	public String endRecord(String channelId) throws Exception {
-		AgoraJavaRecording agoraJavaRecording = new AgoraJavaRecording(libraryPath,false);
-		RecordingService  recordingService = new RecordingService(agoraJavaRecording);
+		RecordingService recordingService = Recorder.getInstance();
 		recordingService.stopRecord(channelId);
 		return "end record";
 	}

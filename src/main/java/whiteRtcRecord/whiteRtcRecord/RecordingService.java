@@ -10,18 +10,18 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Vector;
 
-import io.agora.common.Common;
-import io.agora.common.Common.AUDIO_FORMAT_TYPE;
-import io.agora.common.Common.AudioFrame;
-import io.agora.common.Common.CHANNEL_PROFILE_TYPE;
-import io.agora.common.Common.REMOTE_VIDEO_STREAM_TYPE;
-import io.agora.common.Common.VIDEO_FORMAT_TYPE;
-import io.agora.common.Common.VideoFrame;
-import io.agora.common.RecordingConfig;
-import io.agora.record.AgoraJavaRecording;
-import io.agora.record.RecordingOberserver;
+import io.agora.recording.common.Common;
+import io.agora.recording.common.Common.AUDIO_FORMAT_TYPE;
+import io.agora.recording.common.Common.AudioFrame;
+import io.agora.recording.common.Common.CHANNEL_PROFILE_TYPE;
+import io.agora.recording.common.Common.REMOTE_VIDEO_STREAM_TYPE;
+import io.agora.recording.common.Common.VIDEO_FORMAT_TYPE;
+import io.agora.recording.common.Common.VideoFrame;
+import io.agora.recording.common.RecordingConfig;
+import io.agora.recording.RecordingEventHandler;
+import io.agora.recording.RecordingSDK;
 
-public class RecordingService implements RecordingOberserver {
+public class RecordingService implements RecordingEventHandler {
     private static Map<String, Long> channelNativeMap = new HashMap<String, Long>();
     // java run status flag
     private boolean stopped = false;
@@ -37,16 +37,16 @@ public class RecordingService implements RecordingOberserver {
     private CHANNEL_PROFILE_TYPE profile_type;
     Vector<Long> m_peers = new Vector<Long>();
     private long mNativeHandle = 0;
-    private AgoraJavaRecording agoraJavaRecording = null;
+    private RecordingSDK recordingSDK = null;
     private String channelId;
 
-    public RecordingService(AgoraJavaRecording agoraJavaRecording) {
-        this.agoraJavaRecording = agoraJavaRecording;
-        agoraJavaRecording.registerOberserver(this);
+    public RecordingService(RecordingSDK recordingSDK) {
+        this.recordingSDK = recordingSDK;
+        recordingSDK.registerOberserver(this);
     }
 
     public void unRegister(){
-        agoraJavaRecording.unRegisterOberserver(this);
+        recordingSDK.unRegisterOberserver(this);
     }
 
     private boolean IsMixMode() {
@@ -204,7 +204,7 @@ public class RecordingService implements RecordingOberserver {
         } else {
             layout.regions = null;
         }
-        return agoraJavaRecording.setVideoMixingLayout(mNativeHandle, layout);
+        return recordingSDK.setVideoMixingLayout(mNativeHandle, layout);
     }
 
     private void WriteBytesToFileClassic(ByteBuffer byteBuffer, String fileDest) {
@@ -414,7 +414,7 @@ public class RecordingService implements RecordingOberserver {
             this.kbps = Integer.valueOf(sourceStrArray[3]).intValue();
         }
         // run jni event loop , or start a new thread to do it
-        agoraJavaRecording.createChannel(appId, channelKey, name, uid, config);
+        recordingSDK.createChannel(appId, channelKey, name, uid, config);
         System.out.println("jni layer has been exited...");
         return;
     }
@@ -422,7 +422,7 @@ public class RecordingService implements RecordingOberserver {
     public void stopRecord(String channelId) throws Exception {
         Long nativeHandle = RecordingService.channelNativeMap.get(channelId);
         System.out.println("nativeHandle is " + nativeHandle);
-        boolean result = agoraJavaRecording.leaveChannel(nativeHandle);
+        boolean result = recordingSDK.leaveChannel(nativeHandle);
         System.out.println("result is " + result);
         if (result) {
             return;
