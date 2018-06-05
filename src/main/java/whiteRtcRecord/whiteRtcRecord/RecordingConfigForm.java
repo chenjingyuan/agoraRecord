@@ -1,7 +1,5 @@
 package whiteRtcRecord.whiteRtcRecord;
 
-import io.agora.common.Common;
-
 /**
  * Created by az on 2018/5/19.
  */
