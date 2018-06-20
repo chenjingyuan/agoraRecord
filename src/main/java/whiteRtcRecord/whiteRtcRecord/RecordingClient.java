@@ -1,8 +1,13 @@
 package whiteRtcRecord.whiteRtcRecord;
 
-import java.io.BufferedOutputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import io.agora.recording.RecordingEventHandler;
+import io.agora.recording.RecordingSDK;
+import io.agora.recording.common.Common;
+import io.agora.recording.common.Common.*;
+import io.agora.recording.common.RecordingConfig;
+import whiteRtcRecord.whiteRtcRecord.service.RecordingService;
+
+import java.io.*;
 import java.nio.ByteBuffer;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -10,19 +15,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Vector;
 
-import io.agora.recording.common.Common;
-import io.agora.recording.common.Common.AUDIO_FORMAT_TYPE;
-import io.agora.recording.common.Common.AudioFrame;
-import io.agora.recording.common.Common.CHANNEL_PROFILE_TYPE;
-import io.agora.recording.common.Common.REMOTE_VIDEO_STREAM_TYPE;
-import io.agora.recording.common.Common.VIDEO_FORMAT_TYPE;
-import io.agora.recording.common.Common.VideoFrame;
-import io.agora.recording.common.RecordingConfig;
-import io.agora.recording.RecordingEventHandler;
-import io.agora.recording.RecordingSDK;
-
-public class RecordingService implements RecordingEventHandler {
-    private static Map<String, Long> channelNativeMap = new HashMap<String, Long>();
+public class RecordingClient implements RecordingEventHandler {
+    private RecordingService recordingService;
+    private RecordingSDK recordingSDK;
     // java run status flag
     private boolean stopped = false;
     private boolean isMixMode = false;
@@ -30,19 +25,30 @@ public class RecordingService implements RecordingEventHandler {
     private int height = 0;
     private int fps = 0;
     private int kbps = 0;
-    private String storageDir = "./";
+//    private String storageDir = "./";
+    private String storageDir = "/usr/local/webapps/aac/";
     private long aCount = 0;
     private long count = 0;
     private long size = 0;
     private CHANNEL_PROFILE_TYPE profile_type;
     Vector<Long> m_peers = new Vector<Long>();
     private long mNativeHandle = 0;
-    private RecordingSDK recordingSDK = null;
     private String channelId;
+    private Recorder recorder;
+    private Uploader uploader;
 
-    public RecordingService(RecordingSDK recordingSDK) {
-        this.recordingSDK = recordingSDK;
-        recordingSDK.registerOberserver(this);
+    public RecordingClient(RecordingService recordingService) {
+        try {
+            this.uploader = new Uploader();
+            this.recorder = new Recorder();
+            this.recordingSDK = new RecordingSDK();
+            this.recordingService = recordingService;
+            System.out.println(this);
+            this.recordingSDK.registerOberserver(this);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
     }
 
     public void unRegister(){
@@ -54,7 +60,6 @@ public class RecordingService implements RecordingEventHandler {
     }
 
     public void nativeObjectRef(long nativeHandle) {
-        RecordingService.channelNativeMap.put(channelId, nativeHandle);
         mNativeHandle = nativeHandle;
         System.out.println("AgoraJavaRecording onJoinChannel done!" + nativeHandle);
 
@@ -79,6 +84,11 @@ public class RecordingService implements RecordingEventHandler {
         m_peers.remove(uid);
         PrintUsersInfo(m_peers);
         SetVideoMixingLayout();
+        try {
+            recordingService.onUserLeave(uid, channelId);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public void onUserJoined(long uid, String recordingDir) {
@@ -88,21 +98,25 @@ public class RecordingService implements RecordingEventHandler {
         PrintUsersInfo(m_peers);
         // When the user joined, we can re-layout the canvas
         SetVideoMixingLayout();
+        // 记录用户进入时间，生成文件存放路径，路径规则： channelId/userId/userId_timestamp_ms.aac;
+        String path = channelId + "/" + uid + "/" + uid + "_" + System.currentTimeMillis() + ".aac";
+        recordingService.onUserJoin(uid, channelId, path);
     }
 
     public void audioFrameReceived(long uid, int type, AudioFrame frame) {
-        // System.out.println("java demo
-        // audioFrameReceived,uid:"+uid+",type:"+type);
         ByteBuffer buf = null;
         String path = storageDir + Long.toString(uid);
+        String fileName = uid + "";
         if (type == 0) {// pcm
             path += ".pcm";
+            fileName += ".pcm";
             buf = frame.pcm.pcmBuf;
         } else if (type == 1) {// aac
-            path += ".aac";
             buf = frame.aac.aacBuf;
+
         }
-        WriteBytesToFileClassic(buf, path);
+
+        WriteBytesToFileClassic(buf, uid);
         buf = null;
         path = null;
         frame = null;
@@ -110,26 +124,30 @@ public class RecordingService implements RecordingEventHandler {
 
     public void videoFrameReceived(long uid, int type, VideoFrame frame, int rotation)// rotation:0,90,180,270
     {
-        String path = storageDir + Long.toString(uid);
-        ByteBuffer buf = null;
-        // System.out.println("java demo
-        // videoFrameReceived,uid:"+uid+",type:"+type);
-        if (type == 0) {// yuv
-            path += ".			buf = frame.yuv.bujf";
-            if (buf == null) {
-                System.out.println("java demo videoFrameReceived null");
-            }
-        } else if (type == 1) {// h264
-            path += ".h264";
-            buf = frame.h264.buf;
-        } else if (type == 2) { // jpg
-            path += "_" + GetNowDate() + ".jpg";
-            buf = frame.jpg.buf;
-        }
-        WriteBytesToFileClassic(buf, path);
-        buf = null;
-        path = null;
-        frame = null;
+//        String path = storageDir + Long.toString(uid);
+//        ByteBuffer buf = null;
+//        // System.out.println("java demo
+//        // videoFrameReceived,uid:"+uid+",type:"+type);
+//        String fileName = uid + "_" + GetNowDate();
+//        if (type == 0) {// yuv
+//            path += ".yuv";			//buf = frame.yuv.bujf;
+//            fileName += ".yuv";
+//            if (buf == null) {
+//                System.out.println("java demo videoFrameReceived null");
+//            }
+//        } else if (type == 1) {// h264
+//            path += ".h264";
+//            buf = frame.h264.buf;
+//            fileName += ".h264";
+//        } else if (type == 2) { // jpg
+//            path += "_" + GetNowDate() + ".jpg";
+//            buf = frame.jpg.buf;
+//            fileName += ".jpg";
+//        }
+//        WriteBytesToFileClassic(buf, path, fileName);
+//        buf = null;
+//        path = null;
+//        frame = null;
     }
 
     /*
@@ -207,25 +225,18 @@ public class RecordingService implements RecordingEventHandler {
         return recordingSDK.setVideoMixingLayout(mNativeHandle, layout);
     }
 
-    private void WriteBytesToFileClassic(ByteBuffer byteBuffer, String fileDest) {
+    private void WriteBytesToFileClassic(ByteBuffer byteBuffer, Long userId) {
         if (byteBuffer == null) {
-            System.out.println("WriteBytesToFileClassic but byte buffer is null!");
             return;
         }
         byte[] data = new byte[byteBuffer.capacity()];
         ((ByteBuffer) byteBuffer.duplicate().clear()).get(data);
-        try {
-            FileOutputStream fos = new FileOutputStream(fileDest, true);
-            BufferedOutputStream bos = new BufferedOutputStream(fos);
-            bos.write(data);
-            bos.flush();
-            bos.close();
-            fos = null;
-            bos = null;
-            data = null;
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+
+        InputStream contentStream = new ByteArrayInputStream(data);
+        recorder.addRecordingChannel(channelId, userId, contentStream);
+
+        System.out.println("close a file!");
+        data = null;
     }
 
     private String GetNowDate() {
@@ -247,7 +258,7 @@ public class RecordingService implements RecordingEventHandler {
         int uid = 0;
         String appId = "";
         String channelKey = "";
-        String name = "";
+        String channelName = "";
         int channelProfile = 0;
 
         String decryptionMode = "";
@@ -329,9 +340,9 @@ public class RecordingService implements RecordingEventHandler {
         }
         uid = Integer.parseInt(String.valueOf(Uid));
         appId = String.valueOf(Appid);
-        name = String.valueOf(Channel);
+        channelName = String.valueOf(Channel);
         applitePath = String.valueOf(AppliteDir);
-
+        channelId = channelName;
         if (ChannelKey != null)
             channelKey = String.valueOf(ChannelKey);
         if (ChannelProfile != null)
@@ -414,20 +425,15 @@ public class RecordingService implements RecordingEventHandler {
             this.kbps = Integer.valueOf(sourceStrArray[3]).intValue();
         }
         // run jni event loop , or start a new thread to do it
-        recordingSDK.createChannel(appId, channelKey, name, uid, config);
+        recordingSDK.createChannel(appId, channelKey, channelName, uid, config);
         System.out.println("jni layer has been exited...");
         return;
     }
 
-    public void stopRecord(String channelId) throws Exception {
-        Long nativeHandle = RecordingService.channelNativeMap.get(channelId);
-        System.out.println("nativeHandle is " + nativeHandle);
-        boolean result = recordingSDK.leaveChannel(nativeHandle);
-        System.out.println("result is " + result);
-        if (result) {
-            return;
-        } else {
-            throw new Exception("退出失败");
-        }
+    public Boolean stopRecord(String channelId) {
+        System.out.println("nativeHandle is " + mNativeHandle);
+        Boolean result = recordingSDK.leaveChannel(mNativeHandle);
+
+        return result;
     }
 }

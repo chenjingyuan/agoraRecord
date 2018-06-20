@@ -46,6 +46,16 @@
 			<version>1.16.18</version>
 			<scope>provided</scope>
 		</dependency>
+		<!-- MYSQL -->
+		<dependency>
+			<groupId>mysql</groupId>
+			<artifactId>mysql-connector-java</artifactId>
+		</dependency>
+		<!-- Spring Boot JDBC -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-jdbc</artifactId>
+		</dependency>
 		<dependency>
 			<groupId>io.agora</groupId>
 			<artifactId>agora</artifactId>
@@ -53,7 +63,11 @@
 			<scope>system</scope>
 			<systemPath>${project.basedir}/lib/agora.jar</systemPath>
 		</dependency>
-
+		<dependency>
+			<groupId>com.aliyun.oss</groupId>
+			<artifactId>aliyun-sdk-oss</artifactId>
+			<version>3.1.0</version>
+		</dependency>
 
 	</dependencies>
 
