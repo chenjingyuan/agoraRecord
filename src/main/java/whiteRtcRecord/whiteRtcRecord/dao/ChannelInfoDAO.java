@@ -16,20 +16,39 @@ public class ChannelInfoDAO {
     private JdbcTemplate jdbcTemplate;
 
     public List<Channel> getChannels(){
-        String sql = "SELECT channel_id, room_token FROM recording_channel_info";
+        String sql = "SELECT channel_id, room_token, record_state FROM recording_channel_info";
         return jdbcTemplate.query(sql, (rs, rowNum) -> {
             Channel channel = new Channel();
             channel.setChannelId(rs.getString("channel_id"));
             channel.setRoomToken(rs.getString("room_token"));
+            channel.setRecordState(rs.getBoolean("record_state"));
             return channel;
         });
     }
 
-    public void setChannelInfo(Channel channel) {
+    public Channel getChannelByChannelId(String channelId){
+        String sql = "SELECT channel_id, room_token, record_state FROM recording_channel_info WHERE channel_id = ?";
+        return jdbcTemplate.query(sql, (rs) -> {
+            Channel channel = new Channel();
+            channel.setChannelId(rs.getString("channel_id"));
+            channel.setRoomToken(rs.getString("room_token"));
+            channel.setRecordState(rs.getBoolean("record_state"));
+            return channel;
+        }, channelId);
+    }
+
+    public void addChannelInfo(Channel channel) {
         jdbcTemplate.update(
-                "INSERT INTO recording_channel_info (channel_id, room_token)" +
+                "INSERT INTO recording_channel_info (channel_id, room_token, record_state)" +
                         " VALUES (?, ?, ?)",
                 channel.getChannelId(), channel.getRoomToken()
+        );
+    }
+
+    public void updateChannelState(String channelId, Boolean recordState) {
+        jdbcTemplate.update(
+                "UPDATE recording_channel_info SET record_state = ? WHERE channel_id = ?",
+                recordState, channelId
         );
     }
 }

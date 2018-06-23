@@ -1,66 +1,67 @@
 package whiteRtcRecord.whiteRtcRecord;
 
 import com.aliyun.oss.model.AppendObjectRequest;
+import com.aliyun.oss.model.AppendObjectResult;
 import com.aliyun.oss.model.ObjectMetadata;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @Component
 public class Recorder {
     @Value("${bucket}")
     private String bucket = "herewhite-test";
 
-    private Uploader uploader = new Uploader();
+    private Map<String, Map<Long, RecodingFile>> recordingFiles = ChannelData.getRecordingUserAndFiles();
 
-    private Map<String, List<RecodingFile>> recordingFiles = ChannelData.getRecordingFiles();
-
-    // 将录制信息记录在内存中，并开始记录
-    public void addRecordingChannel(String channelName, Long userId, InputStream contentStream) {
-        if (recordingFiles.get(channelName) == null) {
-            List<RecodingFile> recodingFiles = new ArrayList<>();
-
-            recodingFiles.add(buildRecordFile(fileName, contentStream));
-
-            recordingFiles.put(channelName, recodingFiles);
+    /**
+     * 将录制信息记录在内存中，并开始记录
+     * @param channelId
+     * @param userId
+     * @param contentStream
+     */
+    public void addRecordingChannel(String channelId, Long userId, InputStream contentStream) {
+        if (recordingFiles.get(channelId) == null || recordingFiles.get(channelId).get(userId) == null) {
+            /**
+             * error 用户不在房间时不应该收到回调
+             * 用户离开房间后立即删除用户数据，有可能会丢失数据
+             * 但是由于无法知道用户离开后数据是否传完，还需要完善方案
+             */
+            System.out.println("user " + userId + " has levave channel " + channelId);
         } else {
-            // 由于一个channel中的user不会重复，所以user的录制文件也是唯一的
-            List<RecodingFile> file =
-                    recordingChannel.get(channelName).stream().filter(recodingFile -> {
-                        System.out.println("!!!!!!!!!!!!!!!" + recodingFile.name + "///" + fileName);
-                        return recodingFile.name.equals(fileName);
-                    }).collect(Collectors.toList());
-            System.out.println("++++++++++++++" + file.size());
+            RecodingFile recodingFile =  recordingFiles.get(channelId).get(userId);
 
-            if (file.size() == 0) {
-                recordingChannel.get(channelName).add(buildRecordFile(fileName,contentStream));
+            if (recodingFile.appendObjectRequest == null) {
+                buildAndSaveRecordFile(recodingFile, contentStream);
             } else {
-                AppendObjectRequest appendRequest = file.get(0).appendObjectRequest;
+                AppendObjectRequest appendRequest = recodingFile.appendObjectRequest;
                 appendRequest.setInputStream(contentStream);
-                file.get(0).uploadPosition = uploader.appendUpload(appendRequest, file.get(0).uploadPosition);
+                recodingFile.uploadPosition = appendUpload(appendRequest, recodingFile.uploadPosition);
             }
         }
     }
 
-    public RecodingFile buildRecordFile(String fileName, InputStream contentStream) {
-        RecodingFile recodingFile = new RecodingFile(fileName);
-
+    private RecodingFile buildAndSaveRecordFile(RecodingFile recodingFile, InputStream contentStream) {
         ObjectMetadata meta = new ObjectMetadata();
         // 指定上传的内容类型。
         meta.setContentType("text/plain");
-        //可通过AppendObjectRequest方法设置参数。
+        // 可通过AppendObjectRequest方法设置参数。
         AppendObjectRequest appendObjectRequest =
-                new AppendObjectRequest(bucket, fileName, contentStream, meta);
+                new AppendObjectRequest(bucket, recodingFile.path, contentStream, meta);
 
-        recodingFile.uploadPosition = uploader.appendUpload(appendObjectRequest, 0L);
+        recodingFile.uploadPosition = appendUpload(appendObjectRequest, 0L);
         recodingFile.appendObjectRequest = appendObjectRequest;
-        System.out.println("~~~~~~~~~~~~" + recodingFile + " //// " + fileName);
         return recodingFile;
+    }
+
+    private Long appendUpload(AppendObjectRequest appendObjectRequest, Long position) {
+        appendObjectRequest.setPosition(position);
+        AppendObjectResult appendObjectResult = ChannelData.getOssClient().appendObject(appendObjectRequest);
+        //Object的64位CRC值。此值是根据[ECMA-182]标准计算得出。
+        System.out.println("================" + appendObjectResult.getObjectCRC());
+        return appendObjectResult.getNextPosition();
     }
 
 }

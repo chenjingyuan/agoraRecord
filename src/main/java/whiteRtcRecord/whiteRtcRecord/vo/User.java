@@ -9,8 +9,9 @@ public class User {
     private Long userId;
     private String channelId;
     private Date joinTime;
-    private Date leaveTime;
+    private Date lastTimeInChannel;
     private String recordingFilePath;
+    private Boolean leaved;
 
     public String getRecordingFilePath() {
         return recordingFilePath;
@@ -44,11 +45,19 @@ public class User {
         this.joinTime = joinTime;
     }
 
-    public Date getLeaveTime() {
-        return leaveTime;
+    public Date getLastTimeInChannel() {
+        return lastTimeInChannel;
     }
 
-    public void setLeaveTime(Date leaveTime) {
-        this.leaveTime = leaveTime;
+    public void setLastTimeInChannel(Date lastTimeInChannel) {
+        this.lastTimeInChannel = lastTimeInChannel;
+    }
+
+    public Boolean getLeaved() {
+        return leaved;
+    }
+
+    public void setLeaved(Boolean leaved) {
+        this.leaved = leaved;
     }
 }

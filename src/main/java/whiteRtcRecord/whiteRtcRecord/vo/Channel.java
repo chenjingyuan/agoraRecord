@@ -6,6 +6,7 @@ package whiteRtcRecord.whiteRtcRecord.vo;
 public class Channel {
     private String channelId;
     private String roomToken;
+    private Boolean recordState;
 
     public String getChannelId() {
         return channelId;
@@ -21,5 +22,13 @@ public class Channel {
 
     public void setRoomToken(String roomToken) {
         this.roomToken = roomToken;
+    }
+
+    public Boolean getRecordState() {
+        return recordState;
+    }
+
+    public void setRecordState(Boolean recordState) {
+        this.recordState = recordState;
     }
 }

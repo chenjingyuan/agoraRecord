@@ -34,13 +34,9 @@ public class RecordingClient implements RecordingEventHandler {
     Vector<Long> m_peers = new Vector<Long>();
     private long mNativeHandle = 0;
     private String channelId;
-    private Recorder recorder;
-    private Uploader uploader;
 
     public RecordingClient(RecordingService recordingService) {
         try {
-            this.uploader = new Uploader();
-            this.recorder = new Recorder();
             this.recordingSDK = new RecordingSDK();
             this.recordingService = recordingService;
             System.out.println(this);
@@ -233,7 +229,7 @@ public class RecordingClient implements RecordingEventHandler {
         ((ByteBuffer) byteBuffer.duplicate().clear()).get(data);
 
         InputStream contentStream = new ByteArrayInputStream(data);
-        recorder.addRecordingChannel(channelId, userId, contentStream);
+        recordingService.onMediaReceived(channelId, userId, contentStream);
 
         System.out.println("close a file!");
         data = null;
