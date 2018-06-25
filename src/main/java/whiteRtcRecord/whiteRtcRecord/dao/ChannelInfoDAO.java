@@ -29,11 +29,15 @@ public class ChannelInfoDAO {
     public Channel getChannelByChannelId(String channelId){
         String sql = "SELECT channel_id, room_token, record_state FROM recording_channel_info WHERE channel_id = ?";
         return jdbcTemplate.query(sql, (rs) -> {
-            Channel channel = new Channel();
-            channel.setChannelId(rs.getString("channel_id"));
-            channel.setRoomToken(rs.getString("room_token"));
-            channel.setRecordState(rs.getBoolean("record_state"));
-            return channel;
+            if (rs.next()) {
+                Channel channel = new Channel();
+                channel.setChannelId(rs.getString("channel_id"));
+                channel.setRoomToken(rs.getString("room_token"));
+                channel.setRecordState(rs.getBoolean("record_state"));
+                return channel;
+            } else {
+                return null;
+            }
         }, channelId);
     }
 
@@ -41,7 +45,7 @@ public class ChannelInfoDAO {
         jdbcTemplate.update(
                 "INSERT INTO recording_channel_info (channel_id, room_token, record_state)" +
                         " VALUES (?, ?, ?)",
-                channel.getChannelId(), channel.getRoomToken()
+                channel.getChannelId(), channel.getRoomToken(), channel.getRecordState()
         );
     }
 

@@ -231,7 +231,7 @@ public class RecordingClient implements RecordingEventHandler {
         InputStream contentStream = new ByteArrayInputStream(data);
         recordingService.onMediaReceived(channelId, userId, contentStream);
 
-        System.out.println("close a file!");
+//        System.out.println("close a file!");
         data = null;
     }
 

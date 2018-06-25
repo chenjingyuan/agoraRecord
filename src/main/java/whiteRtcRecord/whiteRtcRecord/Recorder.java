@@ -3,7 +3,6 @@ package whiteRtcRecord.whiteRtcRecord;
 import com.aliyun.oss.model.AppendObjectRequest;
 import com.aliyun.oss.model.AppendObjectResult;
 import com.aliyun.oss.model.ObjectMetadata;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.io.InputStream;
@@ -11,7 +10,6 @@ import java.util.Map;
 
 @Component
 public class Recorder {
-    @Value("${bucket}")
     private String bucket = "herewhite-test";
 
     private Map<String, Map<Long, RecodingFile>> recordingFiles = ChannelData.getRecordingUserAndFiles();
@@ -34,6 +32,7 @@ public class Recorder {
             RecodingFile recodingFile =  recordingFiles.get(channelId).get(userId);
 
             if (recodingFile.appendObjectRequest == null) {
+                System.out.println("write to " + recodingFile.path);
                 buildAndSaveRecordFile(recodingFile, contentStream);
             } else {
                 AppendObjectRequest appendRequest = recodingFile.appendObjectRequest;
@@ -60,7 +59,7 @@ public class Recorder {
         appendObjectRequest.setPosition(position);
         AppendObjectResult appendObjectResult = ChannelData.getOssClient().appendObject(appendObjectRequest);
         //Object的64位CRC值。此值是根据[ECMA-182]标准计算得出。
-        System.out.println("================" + appendObjectResult.getObjectCRC());
+//        System.out.println("================" + appendObjectResult.getObjectCRC());
         return appendObjectResult.getNextPosition();
     }
 

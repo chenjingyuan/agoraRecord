@@ -8,6 +8,7 @@ import whiteRtcRecord.whiteRtcRecord.vo.User;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.util.List;
 
 /**
@@ -22,7 +23,7 @@ public class UserInfoDAO {
         jdbcTemplate.update(
                 "INSERT INTO recording_user_info (user_id, channel_id, join_time, recording_file_path, leaved)" +
                         " VALUES (?, ?, ?, ?, ?)",
-                user.getUserId(), user.getChannelId(), user.getJoinTime(), user.getRecordingFilePath(), user.getLeaved()
+                user.getUserId(), user.getChannelId(), new Timestamp(user.getJoinTime().getTime()), user.getRecordingFilePath(), user.getLeaved()
         );
     }
 
@@ -30,7 +31,7 @@ public class UserInfoDAO {
         jdbcTemplate.update(
                 "UPDATE recording_user_info SET last_time_in_channel = ?, leaved = ? " +
                         " WHERE user_id = ? AND channel_id = ?",
-                user.getLastTimeInChannel(), true, user.getUserId(), user.getChannelId()
+                new Timestamp(user.getLastTimeInChannel().getTime()), true, user.getUserId(), user.getChannelId()
         );
     }
 
@@ -49,7 +50,7 @@ public class UserInfoDAO {
             @Override
             public void setValues(PreparedStatement ps, int i)throws SQLException {
                 User user = users.get(i);
-                ps.setLong(1, user.getLastTimeInChannel().getTime());
+                ps.setTimestamp(1, new Timestamp(user.getLastTimeInChannel().getTime()));
                 ps.setLong(2, user.getUserId());
                 ps.setString(3, user.getChannelId());
             }

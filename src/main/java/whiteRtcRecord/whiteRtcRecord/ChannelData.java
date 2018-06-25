@@ -2,7 +2,7 @@ package whiteRtcRecord.whiteRtcRecord;
 
 import com.aliyun.oss.OSS;
 import com.aliyun.oss.OSSClientBuilder;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -12,14 +12,17 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class ChannelData {
 
-    @Value("${endpoint}")
-    static String endpoint;
-    @Value("${accessKeyId}")
-    static String accessKeyId;
-    @Value("${accessKeySecret}")
-    static String accessKeySecret;
-    @Value("${bucket}")
-    static String bucket;
+    static String endpoint = "http://oss-cn-beijing.aliyuncs.com";
+    static String accessKeyId = "LTAIdIgc3ScCo8Xy";
+    static String accessKeySecret = "efeIceFOCANGpfFAypte7UnGe1VkY8";
+    @Autowired
+    public ChannelData(String endpoint,
+                       String accessKeyId,
+                       String accessKeySecret) {
+        this.endpoint = endpoint;
+        this.accessKeyId = accessKeyId;
+        this.accessKeySecret = accessKeySecret;
+    }
 
     // 用于记录房间的录制状态
     private static Map<String, Boolean> channelsRecordingStates = new ConcurrentHashMap<>();
@@ -27,8 +30,6 @@ public class ChannelData {
     private static Map<String, Map<Long, RecodingFile>> recordingUserAndFiles = new ConcurrentHashMap<>();
 
     private static OSS ossClient = new OSSClientBuilder().build(endpoint, accessKeyId, accessKeySecret);
-
-    private ChannelData() {}
 
     public static Map<String, Boolean>  getChannelsRecordingStates() {
         return channelsRecordingStates;

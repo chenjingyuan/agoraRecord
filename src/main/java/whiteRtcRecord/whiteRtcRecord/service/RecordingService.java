@@ -1,8 +1,14 @@
 package whiteRtcRecord.whiteRtcRecord.service;
 
+import com.google.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 import whiteRtcRecord.whiteRtcRecord.ChannelData;
 import whiteRtcRecord.whiteRtcRecord.RecodingFile;
 import whiteRtcRecord.whiteRtcRecord.Recorder;
@@ -14,10 +20,7 @@ import whiteRtcRecord.whiteRtcRecord.vo.User;
 
 import javax.annotation.PostConstruct;
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -45,6 +48,8 @@ public class RecordingService {
     private String defaultUid;
     @Value("${libraryPath}")
     private String libraryPath;
+    @Value("${eventEndpoint}")
+    private String eventEndpoint;
 
     private static long periodOfUpdate = 30;
 
@@ -54,12 +59,14 @@ public class RecordingService {
     // 记录所有房间的用户id
     private Map<String, Map<Long, RecodingFile>> channelsUserAndFiles = ChannelData.getRecordingUserAndFiles();
 
+    private Gson gson = new Gson();
+
     @PostConstruct
     private void getAllUsersInfoInChannels() {
         Runnable runnable = () -> {
             List<User> users = new ArrayList<>();
             channelsUserAndFiles.keySet().stream()
-                    .forEach(channelId -> {
+                    .forEach(channelId ->
                         users.addAll(channelsUserAndFiles.get(channelId).keySet().stream()
                                 .map(userId -> {
                                     User user = new User();
@@ -68,34 +75,41 @@ public class RecordingService {
                                     user.setLastTimeInChannel(new Date());
                                     return user;
                                 }).collect(Collectors.toList())
-                        );
-                    });
+                        )
+                    );
             if (users.isEmpty()) {
                 return;
             }
-            userInfoDAO.batchUpdateLastTimeInChannel(users);
+            try {
+                userInfoDAO.batchUpdateLastTimeInChannel(users);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         };
         ScheduledExecutorService service = Executors.newSingleThreadScheduledExecutor();
         service.scheduleAtFixedRate(runnable, 0, periodOfUpdate, TimeUnit.SECONDS);
     }
 
     public void startRecord(String channelId, String roomToken) {
-        Channel channelInfo = channelInfoDAO.getChannelByChannelId(channelId);
-        if (channelInfo == null) {
-            Channel channel = new Channel();
-            channel.setChannelId(channelId);
-            channel.setRoomToken(roomToken);
-            channel.setRecordState(false);
-            channelInfoDAO.addChannelInfo(channel);
-        }
-        if (channelInfo.getRecordState() == true && channelsRecordingStates.get(channelId) == true) {
-            return;
-        } else if (channelInfo.getRecordState() == false && channelsRecordingStates.get(channelId) == true) {
-            // error
-            System.out.println("record state wrong");
-        } else {
-            recordingClient.stopRecord(channelId);
-
+        try {
+            Channel channelInfo = channelInfoDAO.getChannelByChannelId(channelId);
+            if (channelInfo == null) {
+                Channel channel = new Channel();
+                channel.setChannelId(channelId);
+                channel.setRoomToken(roomToken);
+                channel.setRecordState(false);
+                channelInfoDAO.addChannelInfo(channel);
+            } else if (channelInfo.getRecordState() == true &&
+                    channelsRecordingStates.get(channelId) != null &&
+                    channelsRecordingStates.get(channelId) == true) {
+                return;
+            } else if (channelInfo.getRecordState() == false &&
+                    channelsRecordingStates.get(channelId) != null &&
+                    channelsRecordingStates.get(channelId) == true) {
+                // error
+                System.out.println("record state wrong");
+                return;
+            }
             System.out.println(System.getProperty("java.library.path"));
             String[] para = new String[] {"--appId", appId,"--uid", defaultUid,
                     "--channel", channelId ,"--appliteDir",appliteDir, "--isAudioOnly", "1",
@@ -104,6 +118,8 @@ public class RecordingService {
             setChannelRecordingState(channelId, true);
             // 需要用sockerio跟room建连
             recordingClient.startRecord(para);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -121,6 +137,11 @@ public class RecordingService {
         user.setRecordingFilePath(path);
         user.setLeaved(false);
         userInfoDAO.setUserJoinInfo(user);
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("userId", userId);
+        dispathEvent("MediaUserJoin", channelId, payload);
+
     }
 
     public void onMediaReceived(String channelId, Long userId, InputStream contentStream) {
@@ -130,6 +151,10 @@ public class RecordingService {
     public void onUserLeave(Long userId, String channelId) throws Exception {
         if (channelsUserAndFiles.containsKey(channelId)) {
             removeChannelUserId(userId, channelId);
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("userId", userId);
+            dispathEvent("MediaUserLeave", channelId, payload);
+
             if (channelsUserAndFiles.get(channelId).isEmpty()) {
                 stopRecord(channelId);
             }
@@ -162,9 +187,28 @@ public class RecordingService {
     private void removeChannelUserId(Long userId, String channelId) {
         if (channelsUserAndFiles.get(channelId).containsKey(userId)) {
             channelsUserAndFiles.get(channelId).remove(userId);
+            User user = new User();
+            user.setUserId(userId);
+            user.setChannelId(channelId);
+            user.setLastTimeInChannel(new Date());
+            userInfoDAO.updateUserLeaveTime(user);
         } else {
             // error 用户没有加入就离开
             System.out.println("remove user " +userId + ", channel " + channelId +" error, user is not in channel");
         }
+    }
+
+    private void dispathEvent(String event, String channelId, Map<String, Object> payload) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("event", event);
+        body.put("payload", payload);
+
+        RestTemplate restTemplate=new RestTemplate();
+        String url= eventEndpoint + "?room=" + channelId + "&token=" + channelInfoDAO.getChannelByChannelId(channelId).getRoomToken();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON_UTF8);
+        HttpEntity<String> entity = new HttpEntity<>(gson.toJson(body), headers);
+
+        restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
     }
 }
