@@ -1,6 +1,7 @@
 package whiteRtcRecord.whiteRtcRecord.service;
 
 import com.google.gson.Gson;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -8,6 +9,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import whiteRtcRecord.whiteRtcRecord.ChannelData;
 import whiteRtcRecord.whiteRtcRecord.RecodingFile;
@@ -31,6 +33,7 @@ import java.util.stream.Collectors;
  * Created by az on 2018/6/17.
  */
 @Service
+@Slf4j
 public class RecordingService {
     @Autowired
     private ChannelInfoDAO channelInfoDAO;
@@ -107,10 +110,10 @@ public class RecordingService {
                     channelsRecordingStates.get(channelId) != null &&
                     channelsRecordingStates.get(channelId) == true) {
                 // error
-                System.out.println("record state wrong");
+                log.error("record state wrong");
                 return;
             }
-            System.out.println(System.getProperty("java.library.path"));
+            log.info(System.getProperty("java.library.path"));
             String[] para = new String[] {"--appId", appId,"--uid", defaultUid,
                     "--channel", channelId ,"--appliteDir",appliteDir, "--isAudioOnly", "1",
                     "--getAudioFrame", "1", "--recordFileRootDir", "/usr/local/webapps/"
@@ -138,10 +141,14 @@ public class RecordingService {
         user.setLeaved(false);
         userInfoDAO.setUserJoinInfo(user);
 
+        List<String> userIds = new ArrayList<>();
+        channelsUserAndFiles.get(channelId).keySet().stream()
+                .forEach(uid -> userIds.add(uid.toString()));
         Map<String, Object> payload = new HashMap<>();
         payload.put("userId", userId);
-        dispathEvent("MediaUserJoin", channelId, payload);
-
+        payload.put("users", userIds);
+        payload.put("isConnected", true);
+        dispathEvent("RtcState", channelId, payload);
     }
 
     public void onMediaReceived(String channelId, Long userId, InputStream contentStream) {
@@ -151,9 +158,15 @@ public class RecordingService {
     public void onUserLeave(Long userId, String channelId) throws Exception {
         if (channelsUserAndFiles.containsKey(channelId)) {
             removeChannelUserId(userId, channelId);
+            List<String> userIds = new ArrayList<>();
+            channelsUserAndFiles.get(channelId).keySet().stream()
+                    .forEach(uid -> userIds.add(uid.toString()));
+
             Map<String, Object> payload = new HashMap<>();
             payload.put("userId", userId);
-            dispathEvent("MediaUserLeave", channelId, payload);
+            payload.put("users", userIds);
+            payload.put("isConnected", false);
+            dispathEvent("RtcState", channelId, payload);
 
             if (channelsUserAndFiles.get(channelId).isEmpty()) {
                 stopRecord(channelId);
@@ -194,7 +207,7 @@ public class RecordingService {
             userInfoDAO.updateUserLeaveTime(user);
         } else {
             // error 用户没有加入就离开
-            System.out.println("remove user " +userId + ", channel " + channelId +" error, user is not in channel");
+            log.error("remove user " +userId + ", channel " + channelId +" error, user is not in channel");
         }
     }
 
@@ -209,6 +222,10 @@ public class RecordingService {
         headers.setContentType(MediaType.APPLICATION_JSON_UTF8);
         HttpEntity<String> entity = new HttpEntity<>(gson.toJson(body), headers);
 
-        restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+        try {
+            restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+        } catch (RestClientException e) {
+            e.printStackTrace();
+        }
     }
 }

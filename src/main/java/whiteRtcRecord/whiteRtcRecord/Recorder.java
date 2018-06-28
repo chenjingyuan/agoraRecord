@@ -3,11 +3,13 @@ package whiteRtcRecord.whiteRtcRecord;
 import com.aliyun.oss.model.AppendObjectRequest;
 import com.aliyun.oss.model.AppendObjectResult;
 import com.aliyun.oss.model.ObjectMetadata;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.io.InputStream;
 import java.util.Map;
 
+@Slf4j
 @Component
 public class Recorder {
     private String bucket = "herewhite-test";
@@ -20,6 +22,7 @@ public class Recorder {
      * @param userId
      * @param contentStream
      */
+    // 该方法应该使用线程池异步进行，或者调用异步上传接口
     public void addRecordingChannel(String channelId, Long userId, InputStream contentStream) {
         if (recordingFiles.get(channelId) == null || recordingFiles.get(channelId).get(userId) == null) {
             /**
@@ -27,12 +30,12 @@ public class Recorder {
              * 用户离开房间后立即删除用户数据，有可能会丢失数据
              * 但是由于无法知道用户离开后数据是否传完，还需要完善方案
              */
-            System.out.println("user " + userId + " has levave channel " + channelId);
+            log.info("user " + userId + " has levave channel " + channelId);
         } else {
             RecodingFile recodingFile =  recordingFiles.get(channelId).get(userId);
 
             if (recodingFile.appendObjectRequest == null) {
-                System.out.println("write to " + recodingFile.path);
+                log.info("write to " + recodingFile.path);
                 buildAndSaveRecordFile(recodingFile, contentStream);
             } else {
                 AppendObjectRequest appendRequest = recodingFile.appendObjectRequest;

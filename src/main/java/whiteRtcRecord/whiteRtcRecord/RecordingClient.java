@@ -5,6 +5,7 @@ import io.agora.recording.RecordingSDK;
 import io.agora.recording.common.Common;
 import io.agora.recording.common.Common.*;
 import io.agora.recording.common.RecordingConfig;
+import lombok.extern.slf4j.Slf4j;
 import whiteRtcRecord.whiteRtcRecord.service.RecordingService;
 
 import java.io.*;
@@ -15,6 +16,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Vector;
 
+@Slf4j
 public class RecordingClient implements RecordingEventHandler {
     private RecordingService recordingService;
     private RecordingSDK recordingSDK;
@@ -57,12 +59,12 @@ public class RecordingClient implements RecordingEventHandler {
 
     public void nativeObjectRef(long nativeHandle) {
         mNativeHandle = nativeHandle;
-        System.out.println("AgoraJavaRecording onJoinChannel done!" + nativeHandle);
+        log.info("AgoraJavaRecording onJoinChannel done!" + nativeHandle);
 
     }
 
     public void onLeaveChannel(int reason) {
-        System.out.println("AgoraJavaRecording onLeaveChannel,code:" + reason);
+        log.info("AgoraJavaRecording onLeaveChannel,code:" + reason);
         stopped = true;
     }
 
@@ -76,7 +78,9 @@ public class RecordingClient implements RecordingEventHandler {
     }
 
     public void onUserOffline(long uid, int reason) {
-        System.out.println("AgoraJavaRecording onUserOffline uid:" + uid + ",offline reason:" + reason);
+        log.info("user leave time "+ new Date().getTime());
+
+        log.info("AgoraJavaRecording onUserOffline uid:" + uid + ",offline reason:" + reason);
         m_peers.remove(uid);
         PrintUsersInfo(m_peers);
         SetVideoMixingLayout();
@@ -88,7 +92,9 @@ public class RecordingClient implements RecordingEventHandler {
     }
 
     public void onUserJoined(long uid, String recordingDir) {
-        System.out.println("onUserJoined uid:" + uid + ",recordingDir:" + recordingDir);
+        log.info("user join time "+ new Date().getTime());
+
+        log.info("onUserJoined uid:" + uid + ",recordingDir:" + recordingDir);
         storageDir = recordingDir;
         m_peers.add(uid);
         PrintUsersInfo(m_peers);
@@ -150,7 +156,7 @@ public class RecordingClient implements RecordingEventHandler {
      * Brief: Callback when JNI layer exited
      */
     public void stopCallBack() {
-        System.out.println("java demo receive stop from JNI ");
+        log.info("java demo receive stop from JNI ");
         stopped = true;
     }
 
@@ -229,9 +235,8 @@ public class RecordingClient implements RecordingEventHandler {
         ((ByteBuffer) byteBuffer.duplicate().clear()).get(data);
 
         InputStream contentStream = new ByteArrayInputStream(data);
-        recordingService.onMediaReceived(channelId, userId, contentStream);
+//        recordingService.onMediaReceived(channelId, userId, contentStream);
 
-//        System.out.println("close a file!");
         data = null;
     }
 
@@ -422,12 +427,11 @@ public class RecordingClient implements RecordingEventHandler {
         }
         // run jni event loop , or start a new thread to do it
         recordingSDK.createChannel(appId, channelKey, channelName, uid, config);
-        System.out.println("jni layer has been exited...");
+        log.info("jni layer has been exited...");
         return;
     }
 
     public Boolean stopRecord(String channelId) {
-        System.out.println("nativeHandle is " + mNativeHandle);
         Boolean result = recordingSDK.leaveChannel(mNativeHandle);
 
         return result;
