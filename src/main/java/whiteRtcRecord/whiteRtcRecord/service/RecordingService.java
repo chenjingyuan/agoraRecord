@@ -217,15 +217,18 @@ public class RecordingService {
         body.put("payload", payload);
 
         RestTemplate restTemplate=new RestTemplate();
-        String url= eventEndpoint + "?room=" + channelId + "&token=" + channelInfoDAO.getChannelByChannelId(channelId).getRoomToken();
+        String roomToken = channelInfoDAO.getChannelByChannelId(channelId).getRoomToken();
+        String url= eventEndpoint + "?room=" + channelId + "&token=" + roomToken;
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON_UTF8);
         HttpEntity<String> entity = new HttpEntity<>(gson.toJson(body), headers);
 
         try {
+            log.info(String.format("dispatch event %s, channelId is %s, roomToken is %s, payload is %s", event, channelId, roomToken, gson.toJson(payload)));
+            log.info(String.format("dispatch event url : %s ", url));
             restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
         } catch (RestClientException e) {
-            e.printStackTrace();
+            log.error(e.getMessage());
         }
     }
 }
