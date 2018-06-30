@@ -28,6 +28,11 @@ public class WhiteRtcRecordApplication{
 		return "end record";
 	}
 
+	@RequestMapping(value="/health", method= RequestMethod.GET)
+	public String health() {
+		return "ok";
+	}
+
 	public static void main(String[] args) {
 		SpringApplication.run(WhiteRtcRecordApplication.class, args);
 	}
